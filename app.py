@@ -50,17 +50,31 @@ else:
 
 st.markdown("<p class='slogan'>Fácil... Rápido... Deconfianza.uy</p>", unsafe_allow_html=True)
 
-# --- BASE DE DATOS LOCAL AMPLIADA ---
+# --- BASE DE DATOS LOCAL AUTOMÁTICA Y AUTO-REPARABLE ---
 DB_FILE = "clientes_deconfianza.csv"
 
 def inicializar_base_datos():
+    columnas_requeridas = ["Nombre", "Subdominio", "GoogleMaps", "Rubro", "Barrio/Zona", "WhatsApp", "Instagram"]
+    
     if not os.path.exists(DB_FILE):
-        # Creamos la estructura incluyendo las nuevas redes y vías de contacto
-        df_inicial = pd.DataFrame(columns=["Nombre", "Subdominio", "GoogleMaps", "Rubro", "Barrio/Zona", "WhatsApp", "Instagram"])
-        # Semillas de ejemplo adaptadas
+        # Crear base de datos de cero si no existe
+        df_inicial = pd.DataFrame(columns=columnas_requeridas)
         df_inicial.loc[0] = ["Ejemplo Taller Mecánico", "https://taller.deconfianza.uy", "-34.9011,-56.1645", "Talleres", "Centro", "099123456", "taller.ejemplo"]
         df_inicial.loc[1] = ["Ejemplo Peluquería Pocitos", "https://pelu.deconfianza.uy", "-34.9150,-56.1500", "Estética", "Pocitos", "099654321", "pelu.ejemplo"]
         df_inicial.to_csv(DB_FILE, index=False)
+    else:
+        # SOLUCIÓN AL KEYERROR: Si el archivo existe pero es viejo, le inyectamos las columnas que le falten
+        try:
+            df_existente = pd.read_csv(DB_FILE)
+            cambios = False
+            for col in columnas_requeridas:
+                if col not in df_existente.columns:
+                    df_existente[col] = ""  # Agrega la columna vacía para que no tire KeyError
+                    cambios = True
+            if cambios:
+                df_existente.to_csv(DB_FILE, index=False)
+        except Exception:
+            pass
 
 inicializar_base_datos()
 
@@ -81,7 +95,6 @@ def calcular_distancia_km(lat1, lon1, lat2, lon2):
     return R * (2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a)))
 
 def extraer_coordenadas(texto_maps):
-    # Detecta coordenadas en formato simple lat,lon o desde URLs de mapas
     regex = r"(-?\\d+\\.\\d+),\\s*(-?\\d+\\.\\d+)"
     match = re.search(regex, str(texto_maps))
     if match:
@@ -231,7 +244,6 @@ else:
         with col_wpp:
             if row['WhatsApp']:
                 clean_wpp = str(row['WhatsApp']).replace(" ", "").replace("+", "")
-                # Si arranca con 09, le ponemos el código de Uruguay automáticamente
                 if clean_wpp.startswith("09"):
                     clean_wpp = "598" + clean_wpp[1:]
                 st.link_button("🟢 Wpp", f"https://wa.me/{clean_wpp}", use_container_width=True)
@@ -247,7 +259,6 @@ else:
                 
         with col_map:
             if row['GoogleMapsRaw']:
-                # Si guardaste la URL directa la usa, si son coordenadas arma el mapa de navegación
                 url_final_mapa = row['GoogleMapsRaw'] if "http" in str(row['GoogleMapsRaw']) else f"https://www.google.com/maps/search/?api=1&query={row['GoogleMapsRaw']}"
                 st.link_button("📍 Mapa", url_final_mapa, use_container_width=True)
             else:
